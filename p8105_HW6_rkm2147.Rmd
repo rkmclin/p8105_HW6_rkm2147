@@ -1,0 +1,8 @@
+---
+title: "p8105_HW6_rkm2147"
+author: "Ronae McLin"
+date: "12/7/2020"
+output: github_document
+---
+
+
