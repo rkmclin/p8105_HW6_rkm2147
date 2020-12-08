@@ -128,8 +128,15 @@ model = lm(bwt~ blength + bhead + babysex + gaweeks + momage, data = baby_df)
 
 show a plot of model residuals against fitted values – use add_predictions and add_residuals in making this plot.
 ```{r}
-
+baby_df %>% 
+  modelr::add_residuals(model) %>% 
+  ggplot(aes(x = momage, y = resid)) + 
+  geom_point()
 ```
+
+is there any skewness? yes, this is right skewed
+any trend, something that is nonlinear? no distinct trends appear
+any extreme outliers. can be observed around the age 20.  There appears to be 3 values that are above 1500 for residual values. 
 
 ```{r}
 fit_1 = lm(bwt ~ blength + gaweeks, data = baby_df)
@@ -148,7 +155,7 @@ model_fit = lm(bwt ~ gaweeks, data = baby_df)
 
 ```{r}
 baby_df %>% 
-  modelr::add_residuals(model_fit) %>% 
+  modelr::add_residuals(model) %>% 
   ggplot(aes(x = gaweeks, y = resid)) + 
   geom_point()
 ```
