@@ -181,10 +181,7 @@ baby_cv =
 
 ```
 
-
-
 ### Problem 3
-
 load data
 ```{r}
 weather_df = 
@@ -199,7 +196,6 @@ weather_df =
     tmax = tmax / 10) %>%
   select(name, id, everything())
 ```
-
 
 ```{r}
 #create a dataset of 5000 rows
@@ -222,11 +218,12 @@ sim_df =
   bind_rows(const = sim_df_const, nonconst = sim_df_nonconst, .id = "weather_df") 
 ```
 
+Preparation of the data frame for the first component of the problem
 
 ```{r}
 boot_df = 
 weather_df %>% 
-  modelr::bootstrap(n = 1000) %>% 
+  modelr::bootstrap(n = 5000) %>% 
   mutate(
     models = map(strap, ~lm(tmax~tmin, data = .x)),
     results = map(models, broom::glance)
@@ -234,21 +231,23 @@ weather_df %>%
   select(results, .id) %>% 
   unnest(results)
   
-
 ```
 
-make the plot for r2
+We can observe from the r-squared plot that the distribution is relatively normal.  There is a slight skew towards the right where the values are closer to 1.
 ```{r}
 r2_plot = 
   boot_df %>% 
   ggplot(aes(x = r.squared)) + geom_density()
-  
+
+r2_plot  
 ```
 
+
+Preparation of the data frame for the next component of the problem
 ```{r}
 beta_df = 
 weather_df %>% 
-  modelr::bootstrap(n = 1000) %>% 
+  modelr::bootstrap(n = 5000) %>% 
   mutate(
     models = map(strap, ~lm(tmax~tmin, data = .x)),
     results = map(models, broom::tidy)
@@ -262,15 +261,43 @@ weather_df %>%
   janitor::clean_names() %>% 
   unnest(tmin, intercept)
 
-#pivot wider, tmin is the Beta 1
+
 ```
 
-make the plot for Beta nought and beta 1
+We can observe from the log(β̂0∗β1) plot that the distribution is relatively normal.  
 ```{r}
-r2_plot = 
+beta_plot = 
   beta_df %>% 
   ggplot(aes(x = log(intercept*tmin))) + geom_density()
  
-r2_plot 
+beta_plot 
 ```
+
+ 
+ The 95% confidence interval created via the 2.5% and 97.5% quantiles for r squared is as follows
+```{r}
+ 
+  quantile(boot_df$r.squared, 0.025)
+  quantile(boot_df$r.squared, .975) 
+ 
+```
+ 
+ Created a new column to consider log(β̂0∗β1)
+```{r}
+beta_df =
+  beta_df %>% 
+  mutate(
+    newvalue = log(intercept*tmin)
+  )
+```
+
+ The 95% confidence interval created via the 2.5% and 97.5% quantiles for log(β̂0∗β1 is as follows
+```{r}
+
+  quantile(beta_df$newvalue, 0.025)
+  quantile(beta_df$newvalue, .975) 
+```
+
+
+
 
