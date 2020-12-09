@@ -29,6 +29,7 @@ theme_set(theme_minimal() + theme(legend.position = "bottom"))
 library(tidyverse)
 library(modelr)
 library(p8105.datasets)
+library(mgcv)
 ```
 
 ### Problem 1
@@ -109,7 +110,7 @@ models_results_df %>%
 Find some residuals
 
 
-Data looks pretty tidy already, don't think we need to do any cleaning up in this aspect. all variables are numeric as well.
+Data looks pretty tidy already, don't think we need to do any cleaning up in this aspect. all variables are numeric as well. **do i need to change the 0/1 to the actaul names?**
 ```{r}
 baby_df = 
   read_csv("./large_data/birthweight.csv")
@@ -122,6 +123,11 @@ In order to insure that I am able to cross validate, the model i created are nes
 
 ```{r}
 model = lm(bwt~ blength + bhead + babysex + gaweeks + momage, data = baby_df)
+```
+
+```{r}
+model %>%  broom::tidy() %>% 
+  knitr::kable(digits = 3)
 ```
 
 **make a plot**
@@ -143,27 +149,128 @@ fit_1 = lm(bwt ~ blength + gaweeks, data = baby_df)
 fit_2 = lm(bwt ~ bhead*blength + babysex*bhead + babysex*blength + babysex*bhead*blength, data = baby_df)
 ```
 
+The first model that we need to compare
+```{r}
+fit_1 %>% 
+   broom::tidy() %>% 
+  knitr::kable(digits = 3)
+```
+
+let's look at the second model we need to compare
 ```{r}
 fit_2 %>% 
-  broom::tidy()
-
+   broom::tidy() %>% 
+  knitr::kable(digits = 3)
 ```
 
+
+Cross validation babes
 ```{r}
-model_fit = lm(bwt ~ gaweeks, data = baby_df)
+baby_cv = 
+  crossv_mc(baby_df, 100) %>% 
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble),
+    crude = map(.x = train, ~lm(bwt ~ blength + gaweeks, data = .x)),
+    full = map(.x = train, ~lm(bwt ~ bhead*blength + babysex*bhead +  
+                                 babysex*blength + babysex*bhead*blength, 
+                                data = baby_df)), 
+    rmse_crude = map2_dbl(.x = crude, .y = test, ~rmse(model = .x, data = .y)),
+    rmse_full = map2_dbl(.x = full, .y = test, ~rmse(model = .x, data = .y))
+  )
+
 ```
 
-```{r}
-baby_df %>% 
-  modelr::add_residuals(model) %>% 
-  ggplot(aes(x = gaweeks, y = resid)) + 
-  geom_point()
-```
 
 
 ### Problem 3
 
+load data
 ```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+```
 
+
+```{r}
+#create a dataset of 5000 rows
+n_samp = 5000
+
+sim_df_const = 
+  tibble(
+    x = rnorm(n_samp, 1, 1),
+    error = rnorm(n_samp, 0, 1),
+    y = 2 + 3 * x + error
+  )
+
+sim_df_nonconst = sim_df_const %>% 
+  mutate(
+  error = error * .75 * x,
+  y = 2 + 3 * x + error
+)
+
+sim_df = 
+  bind_rows(const = sim_df_const, nonconst = sim_df_nonconst, .id = "weather_df") 
+```
+
+
+```{r}
+boot_df = 
+weather_df %>% 
+  modelr::bootstrap(n = 1000) %>% 
+  mutate(
+    models = map(strap, ~lm(tmax~tmin, data = .x)),
+    results = map(models, broom::glance)
+  ) %>% 
+  select(results, .id) %>% 
+  unnest(results)
+  
+
+```
+
+make the plot for r2
+```{r}
+r2_plot = 
+  boot_df %>% 
+  ggplot(aes(x = r.squared)) + geom_density()
+  
+```
+
+```{r}
+beta_df = 
+weather_df %>% 
+  modelr::bootstrap(n = 1000) %>% 
+  mutate(
+    models = map(strap, ~lm(tmax~tmin, data = .x)),
+    results = map(models, broom::tidy)
+  ) %>% 
+  select(results, .id) %>% 
+  unnest(results) %>% 
+  select(term, estimate) %>% 
+  pivot_wider(
+  names_from = "term", 
+  values_from = "estimate") %>% 
+  janitor::clean_names() %>% 
+  unnest(tmin, intercept)
+
+#pivot wider, tmin is the Beta 1
+```
+
+make the plot for Beta nought and beta 1
+```{r}
+r2_plot = 
+  beta_df %>% 
+  ggplot(aes(x = log(intercept*tmin))) + geom_density()
+ 
+r2_plot 
 ```
 
