@@ -152,20 +152,9 @@ baby_df =
 
 In order to insure that I am able to cross validate, the model i created are nested with the two models i will need to compare during a later stage of the homework.  in addition to these 4 required variables, i added one more additional variable, `momage` to see how that predictor influences the outcome.  
 
-```{r}
-my_model %>%  broom::tidy() %>% 
-  knitr::kable(digits = 3)
-```
 
 **make a plot**
 
-show a plot of model residuals against fitted values – use add_predictions and add_residuals in making this plot.
-```{r}
-baby_df %>% 
-  modelr::add_residuals(my_model) %>% 
-  ggplot(aes(x = momage, y = resid)) + 
-  geom_point()
-```
 
 is there any skewness? yes, this is right skewed
 any trend, something that is nonlinear? no distinct trends appear
@@ -204,6 +193,17 @@ fit_2 %>%
   knitr::kable(digits = 3)
 ```
 
+show a plot of model residuals against fitted values – use add_predictions and add_residuals in making this plot.
+```{r}
+baby_df %>% 
+  modelr::add_residuals(my_model) %>% 
+  add_predictions(my_model) %>%  
+  ggplot(aes(x = pred, y = resid)) + 
+  geom_point()
+```
+
+
+### Cross validation
 ```{r}
 cv_df = 
   crossv_mc(baby_df, 100) 
